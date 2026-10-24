@@ -1,0 +1,75 @@
+# BD Commerce Platform - Cursor Rules & Architectural Guidelines
+
+## 1. Project Overview & Architecture
+You are working on a high-performance B2C E-Commerce platform tailored for the Bangladesh market, architected as a modular monorepo:
+- **apps/web**: Next.js App Router (React 19 / 18, Server Components, Server Actions, Tailwind CSS)
+- **apps/api**: Node.js Backend with NestJS / Express, Clean Architecture, TypeScript
+- **Database & ORM**: PostgreSQL 16 + Prisma ORM
+- **Cache & Message Broker**: Redis 7 (caching, cart sessions, rate-limiting, BullMQ queues)
+- **Search & Discovery**: Meilisearch 1.11 (instant search, typo-tolerant Bengali/English search, faceted filtering)
+
+---
+
+## 2. Tech Stack & Best Practices
+
+### Frontend (`apps/web`)
+- **Framework**: Next.js (App Router, React Server Components by default; `"use client"` only when interactivity/hooks required).
+- **Styling**: Tailwind CSS with modular design tokens, dark/light theme support, and responsive-first layouts.
+- **State Management**: Zustand / React Query / Server Actions for caching and client state.
+- **Performance**:
+  - Image optimization via `next/image` with WebP/AVIF support.
+  - Streaming with React Suspense for loading skeletons.
+  - Dynamic imports for heavy dialogs/drawers.
+  - SEO best practices: OpenGraph tags, semantic HTML5, and Schema.org microdata (Product, BreadcrumbList).
+- **Localization & BD Market**:
+  - Currency formatting in BDT (৳) using `Intl.NumberFormat('en-BD', { style: 'currency', currency: 'BDT' })`.
+  - BD phone number validation (`+8801[3-9]\d{8}`).
+  - Support for local payment gateways (bKash, Nagad, SSLCommerz, COD).
+
+### Backend (`apps/api`)
+- **Runtime & Language**: Node.js with TypeScript (`strict: true`).
+- **Framework**: NestJS (preferred) or Express with clear layered architecture:
+  - Controllers -> Services -> Repositories / Prisma Client.
+- **Data Validation & DTOs**: `class-validator` / `zod` for request payload validation.
+- **Error Handling**: Global exception filter, structured JSON error responses with predictable error codes:
+  ```json
+  {
+    "statusCode": 400,
+    "error": "BAD_REQUEST",
+    "message": "Human readable message",
+    "timestamp": "2026-10-24T00:00:00.000Z"
+  }
+  ```
+- **Security**:
+  - Helmet for security headers, CORS restricted to trusted domains.
+  - Rate limiting with Redis (`express-rate-limit` / `@nestjs/throttler`).
+  - Strict password hashing via `bcrypt` / `argon2`.
+  - JWT authentication with secure HTTP-only cookies and refresh token rotation.
+
+### Database & Prisma (`prisma/schema.prisma`)
+- PostgreSQL 16 is the primary relational database.
+- Use cuid or uuid for primary keys where distributed uniqueness is required.
+- Maintain indexed foreign keys and lookup fields (`slug`, `orderNumber`, `email`, `categoryId`, `status`).
+- Always use database transactions (`prisma.$transaction`) for financial operations (order creation, inventory deduction).
+- Prevent N+1 queries by selecting only necessary fields and using proper `include` / relations.
+
+### Cache & Session Management (Redis)
+- Cache frequent read-heavy queries (product catalog, hot categories, home banner configs) with appropriate TTL.
+- Invalidate cache tags on product/category mutation.
+- Cart persistence with TTL for guest checkouts.
+- BullMQ for background jobs: transactional email/SMS notifications, invoice generation, search index syncing.
+
+### Search Engine (Meilisearch)
+- Sync products to Meilisearch on create/update/delete.
+- Search attributes: `title`, `description`, `sku`, `category.name`, `tags`.
+- Filterable attributes: `price`, `categoryId`, `isPublished`, `rating`, `inStock`.
+- Sortable attributes: `price`, `createdAt`, `salesCount`, `rating`.
+
+---
+
+## 3. Code Quality & Conventions
+- Use TypeScript strict mode everywhere; avoid `any`.
+- Keep functions small, single-purpose, and pure where possible.
+- Prefer async/await over raw promises.
+- Use kebab-case for filenames, PascalCase for React components/classes, and camelCase for variables/functions.
+- Do not commit secrets, passwords, or `.env` files to git. Use `.env.example` as the source of truth for required variables.
