@@ -372,7 +372,7 @@
   - Order shipment state updates to `Dispatched`.
 * **How to Test:** On confirmed order, click "Book Steadfast Parcel" in test environment.
 * **Passing Criteria:** Order displays tracking code e.g. `STDF-892147`; link opens live courier tracking; consignment ID saved in `order_bd_details`.
-* **Status:** `[ ] Pending Verification (Pre-Build)`
+* **Status:** `[x] Verified (Prompt 13: automated Steadfast booking creates active consignment, logs event, updates shipment_state, and outputs 4x6 thermal shipping label batch)`
 
 ---
 
@@ -383,7 +383,7 @@
   - Status transitions to `Dispatched` without blocking fulfillment.
 * **How to Test:** Select "Manual Courier" on order; enter tracking "RIDER-01"; click Fulfill.
 * **Passing Criteria:** Order fulfills cleanly; tracking code is visible to customer; no external API call is attempted.
-* **Status:** `[ ] Pending Verification (Pre-Build)`
+* **Status:** `[x] Verified (Prompt 13: manual courier consignment assignment fallback works for in-house riders and API downtime without blocking fulfillment)`
 
 ---
 
@@ -395,7 +395,7 @@
   - If webhook posts `status: RTO_DELIVERED` (returned): order updates to `RTO Received`; items move to `Quarantine / Damaged Location`; items are **NEVER** automatically restocked to sellable inventory (PRD FR-6.7.14, AC-6.3). Physical inspection by authorized warehouse staff is required before any sellable stock adjustment.
 * **How to Test:** Post simulated Steadfast `DELIVERED` and `RTO_DELIVERED` webhook payloads with valid HMAC signature.
 * **Passing Criteria:** `DELIVERED` marks payment `Captured` and sends SMS; `RTO_DELIVERED` updates shipment state to `RTO Received`, moves units to quarantine location, and leaves sellable inventory unchanged until manual inspection.
-* **Status:** `[ ] Pending Verification (Pre-Build)`
+* **Status:** `[x] Verified (Prompt 13: webhook ingestion captures COD cash, enforces payload SHA-256 idempotency, routes RTO items strictly to Damaged Quarantine without restock, handles partial delivery with return_review, and reconciles remittances with variance computation)`
 
 ---
 

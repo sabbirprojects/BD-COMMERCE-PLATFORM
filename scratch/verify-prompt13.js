@@ -432,7 +432,7 @@ async function run() {
     `SELECT * FROM cod_collection_line WHERE order_id = $1`,
     [steadfastOrderId]
   )
-  if (codLineRes.rows.length === 0 || Number(codLineRes.rows[0].amount_paisa) !== 285000) {
+  if (codLineRes.rows.length === 0 || Number(codLineRes.rows[0].collected_paisa) !== 285000) {
     throw new Error(`cod_collection_line not recorded or wrong amount: ${JSON.stringify(codLineRes.rows)}`)
   }
   console.log('✓ CHK-FUL-03: DELIVERED webhook marks order paid/delivered and records COD collection line')
@@ -502,21 +502,21 @@ async function run() {
   // Attach order line item
   await pg.query(
     `INSERT INTO order_line_snapshot (
-      id, order_id, line_item_id, product_id, variant_id, sku,
-      title, variant_title, unit_price_paisa, quantity, cogs_unit_paisa,
+      id, order_id, line_item_id, variant_id, sku,
+      title, variant_title, unit_price_paisa, raw_unit_price_paisa, quantity, cogs_unit_paisa,
       created_at
     ) VALUES (
-      $1, $2, $3, $4, $5, $6,
-      'Test T-Shirt', 'L', 120000, 1, 60000,
+      $1, $2, $3, $4, $5,
+      'Test T-Shirt', 'L', 120000, $6, 1, 60000,
       now()
     )`,
     [
       `ols_${rtoOrderId}`,
       rtoOrderId,
       `item_${rtoOrderId}`,
-      testVariant.product_id,
       testVariant.variant_id,
       testVariant.sku,
+      JSON.stringify({ value: '120000', precision: 20 }),
     ]
   )
 
@@ -707,7 +707,33 @@ async function run() {
     cod_fee_paisa: 2850,
   }
 
-  // Line 2: Disputed discrepancy (remitted 250000 instead of 276150, variance = -26150)
+  // Line 2: Disputed discrepancy (remitted 150000 instead of 200000, variance = -42000)
+  const line2OrderId = `ord_dispute_${Date.now()}`
+  await pg.query(
+    `INSERT INTO "order" (id, version, status, currency_code, created_at, updated_at)
+     VALUES ($1, 1, 'completed', 'bdt', now(), now())`,
+    [line2OrderId]
+  )
+  await pg.query(
+    `INSERT INTO order_bd_details (
+      id, order_id, payment_method_code, cod_status, delivery_zone_code,
+      division_code, district_code, thana_code, address_snapshot,
+      cod_collectable_paisa, customer_paid_delivery_paisa, shipment_state,
+      created_at, updated_at
+    ) VALUES (
+      $1, $2, 'cod', 'confirmed', 'inside_dhaka',
+      'BD-DHK', 'BD-DHK-DHA', 'BD-DHK-DHA-SAV',
+      $3,
+      200000, 6000, 'delivered',
+      now(), now()
+    )`,
+    [
+      `obd_${line2OrderId}`,
+      line2OrderId,
+      JSON.stringify({ phone: '01799999999', first_name: 'Disputed', last_name: 'Order' }),
+    ]
+  )
+
   const line2ConsignmentId = `ext_dispute_${Date.now()}`
   await pg.query(
     `INSERT INTO courier_consignment (
@@ -723,7 +749,7 @@ async function run() {
     )`,
     [
       `consign_disp_${Date.now()}`,
-      partialOrderId,
+      line2OrderId,
       line2ConsignmentId,
       `TRK_DISP_${Date.now()}`,
     ]
@@ -745,7 +771,7 @@ async function run() {
     },
     body: JSON.stringify({
       courier_code: 'steadfast',
-      bank_transfer_ref: 'EFTN-STDF-20261025-01',
+      bank_transfer_ref: `EFTN-STDF-${Date.now()}`,
       total_remitted_paisa: 276150 + 150000,
       lines: [line1, line2],
     }),
@@ -791,8 +817,8 @@ async function run() {
     throw new Error(`Order ${steadfastOrderId} not found in view v_order_shipment_state`)
   }
   const viewRow = viewRes.rows[0]
-  console.log(`View projection for order: shipment_state=${viewRow.shipment_state}, courier=${viewRow.courier_name}, tracking=${viewRow.tracking_code}, events_count=${viewRow.events_count}`)
-  if (viewRow.shipment_state !== 'delivered' || !viewRow.tracking_code || Number(viewRow.events_count) < 2) {
+  console.log(`View projection for order: shipment_state=${viewRow.shipment_state}, courier=${viewRow.courier_provider}, tracking=${viewRow.courier_tracking_code}, last_event=${viewRow.last_event_type}`)
+  if (viewRow.shipment_state !== 'delivered' || !viewRow.courier_tracking_code || viewRow.last_event_type !== 'delivered') {
     throw new Error(`View projection data incorrect: ${JSON.stringify(viewRow)}`)
   }
   console.log('✓ Read model view v_order_shipment_state successfully reflects unified shipment & courier state')

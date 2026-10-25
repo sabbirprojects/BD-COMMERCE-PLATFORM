@@ -71,6 +71,27 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const orderId = consignment?.order_id || orderIdFromPayload || null
   const consignmentInternalId = consignment?.id || null
 
+  // 2. Deduplication & Idempotency check (webhook_event & courier_event)
+  const dedupRes = await pg.raw(
+    `SELECT id FROM webhook_event
+     WHERE source = ? AND payload_sha256 = ?
+     LIMIT 1`,
+    [`courier:${provider}`, payloadSha]
+  )
+  if (dedupRes.rows?.[0]) {
+    await pg.raw(
+      `UPDATE webhook_event
+       SET attempts = attempts + 1, updated_at = now()
+       WHERE id = ?`,
+      [dedupRes.rows[0].id]
+    )
+    return res.status(200).json({
+      success: true,
+      deduplicated: true,
+      message: "Webhook event already processed (idempotency enforced).",
+    })
+  }
+
   // Redact PII for storage (PRD FR-12)
   const redactedPayload = { ...body }
   delete redactedPayload.recipient_phone
@@ -119,34 +140,20 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     return res.status(401).json({ success: false, error: "invalid_webhook_signature" })
   }
 
-  // 3. Deduplication check on courier_event
-  if (consignmentInternalId) {
-    const rawStatus = (body.status || body.order_status || body.parcel_status || body.event || "unknown").toLowerCase()
-    const dedupRes = await pg.raw(
-      `SELECT id FROM courier_event
-       WHERE courier_consignment_id = ? AND payload_sha256 = ?
-       LIMIT 1`,
-      [consignmentInternalId, payloadSha]
-    )
-    if (dedupRes.rows?.[0]) {
-      // Retried webhook event: respond 200 idempotently without re-triggering side effects
-      return res.status(200).json({
-        success: true,
-        deduplicated: true,
-        message: "Webhook event already processed (idempotency enforced).",
-      })
-    }
-  }
-
   // 4. Map Event Status to Normalized Domain
   const rawStatus = (body.status || body.order_status || body.parcel_status || body.event || "").toLowerCase()
+  let isPartialDelivery = Boolean(
+    body.is_partial ||
+    body.partial_delivery ||
+    body.partial_collected ||
+    rawStatus.includes("partial")
+  )
   let normalizedEventType = "in_transit"
   let targetShipmentState = consignment?.shipment_state || "in_transit"
-  let isPartialDelivery = Boolean(body.is_partial || body.partial_delivery || body.partial_collected)
 
-  if (["delivered", "successful", "delivered_approval"].includes(rawStatus)) {
-    normalizedEventType = "delivered"
-    targetShipmentState = "delivered"
+  if (["delivered", "successful", "delivered_approval", "partial_delivery", "partial"].includes(rawStatus) || isPartialDelivery) {
+    normalizedEventType = isPartialDelivery ? "partial_delivery" : "delivered"
+    targetShipmentState = isPartialDelivery ? "partially_delivered" : "delivered"
   } else if (["out_for_delivery", "assigned_for_delivery"].includes(rawStatus)) {
     normalizedEventType = "out_for_delivery"
     targetShipmentState = "out_for_delivery"
@@ -194,13 +201,14 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     )
 
     // Update Consignment status
+    const consignmentStatus = normalizedEventType === "partial_delivery" ? "delivered" : normalizedEventType
     await pg.raw(
       `UPDATE courier_consignment
        SET status = ?,
-           delivered_at = ${normalizedEventType === "delivered" ? "now()" : "delivered_at"},
+           delivered_at = ${["delivered", "partial_delivery"].includes(normalizedEventType) ? "now()" : "delivered_at"},
            updated_at = now()
        WHERE id = ?`,
-      [normalizedEventType, consignmentInternalId]
+      [consignmentStatus, consignmentInternalId]
     )
   }
 
@@ -210,9 +218,10 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     const phone = addr.phone || ""
     const displayId = consignment?.display_id || orderId
 
-    if (normalizedEventType === "delivered") {
+    if (normalizedEventType === "delivered" || normalizedEventType === "partial_delivery") {
       // Handle Full vs Partial COD Delivery (CHK-FUL-03, DFD 5.6)
-      const collectedAmountBdt = body.cod_amount !== undefined ? Number(body.cod_amount) : (Number(consignment.cod_collectable_paisa || 0) / 100)
+      const rawCollected = body.collected_amount !== undefined ? body.collected_amount : (body.cod_amount !== undefined ? body.cod_amount : body.amount)
+      const collectedAmountBdt = rawCollected !== undefined ? Number(rawCollected) : (Number(consignment?.cod_collectable_paisa || 0) / 100)
       const collectedPaisa = Math.round(collectedAmountBdt * 100)
 
       // Record cod_collection_line for the collected cash amount (database.md §8.5)
@@ -253,17 +262,17 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
         )
       }
 
-      // Capture COD payment & mark delivered
-      // Capture COD payment & mark delivered
+      // Capture COD payment & mark delivered / partially_delivered
       await pg.raw(
         `UPDATE order_bd_details
-         SET shipment_state = 'delivered',
+         SET shipment_state = ?,
              cod_status = CASE WHEN payment_method_code = 'cod' THEN 'confirmed' ELSE cod_status END,
              cod_collected_paisa = ?,
              raw_cod_collected_paisa = ?,
              updated_at = now()
          WHERE order_id = ?`,
         [
+          targetShipmentState,
           collectedPaisa,
           JSON.stringify({ value: String(collectedPaisa), precision: 20 }),
           orderId,
@@ -272,15 +281,15 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
 
       await pg.raw(
         `UPDATE "order"
-         SET status = 'completed', updated_at = now()
+         SET status = ?, updated_at = now()
          WHERE id = ?`,
-        [orderId]
+        [isPartialDelivery ? "requires_action" : "completed", orderId]
       )
 
       // Send Delivery SMS
       await sendSmsNotification({
         orderId,
-        eventType: "order.delivered",
+        eventType: isPartialDelivery ? "order.partially_delivered" : "order.delivered",
         phone,
         data: { order_no: displayId },
         pg,
@@ -342,6 +351,18 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
 
       // Route line items to Damaged Quarantine in inventory_level
       await pg.raw(
+        `UPDATE inventory_level il
+         SET stocked_quantity = il.stocked_quantity + ols.quantity, updated_at = now()
+         FROM order_line_snapshot ols
+         JOIN product_variant_inventory_item pvii ON pvii.variant_id = ols.variant_id
+         WHERE ols.order_id = ?
+           AND il.inventory_item_id = pvii.inventory_item_id
+           AND il.location_id = ?
+           AND il.deleted_at IS NULL`,
+        [orderId, DAMAGED_QUARANTINE_LOC_ID]
+      )
+
+      await pg.raw(
         `INSERT INTO inventory_level (
           id, inventory_item_id, location_id, stocked_quantity, reserved_quantity, incoming_quantity, created_at, updated_at
         )
@@ -353,9 +374,13 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
         FROM order_line_snapshot ols
         JOIN product_variant_inventory_item pvii ON pvii.variant_id = ols.variant_id
         WHERE ols.order_id = ?
-        ON CONFLICT (inventory_item_id, location_id)
-        DO UPDATE SET stocked_quantity = inventory_level.stocked_quantity + EXCLUDED.stocked_quantity, updated_at = now()`,
-        [DAMAGED_QUARANTINE_LOC_ID, orderId]
+          AND NOT EXISTS (
+            SELECT 1 FROM inventory_level existing
+            WHERE existing.inventory_item_id = pvii.inventory_item_id
+              AND existing.location_id = ?
+              AND existing.deleted_at IS NULL
+          )`,
+        [DAMAGED_QUARANTINE_LOC_ID, orderId, DAMAGED_QUARANTINE_LOC_ID]
       )
 
       // Create return_review record in 'received_evaluating' state for warehouse physical inspection
