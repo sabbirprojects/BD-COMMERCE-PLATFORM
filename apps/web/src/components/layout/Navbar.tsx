@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { ShoppingBag, Search, Menu, X, ShieldCheck } from 'lucide-react'
 import { Locale, getDictionary } from '@/lib/i18n'
 import { StoreCategory } from '@/lib/medusa'
@@ -16,6 +16,7 @@ interface NavbarProps {
 
 export function Navbar({ locale, categories }: NavbarProps) {
   const pathname = usePathname()
+  const router = useRouter()
   if (pathname?.includes('/lp/')) {
     return null
   }
@@ -24,6 +25,15 @@ export function Navbar({ locale, categories }: NavbarProps) {
   const { itemCount, openDrawer } = useCart()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault()
+    const trimmed = searchQuery.trim()
+    if (trimmed) {
+      router.push(`/${locale}/search?q=${encodeURIComponent(trimmed)}`)
+      setMobileMenuOpen(false)
+    }
+  }
 
   // Top primary categories
   const featuredCategories = categories
@@ -60,7 +70,7 @@ export function Navbar({ locale, categories }: NavbarProps) {
 
           {/* Desktop Search Bar */}
           <div className="hidden md:flex flex-1 max-w-md mx-4">
-            <div className="relative w-full">
+            <form onSubmit={handleSearch} className="relative w-full">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
               <input
                 type="text"
@@ -69,7 +79,7 @@ export function Navbar({ locale, categories }: NavbarProps) {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 text-sm bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-full focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 transition-all"
               />
-            </div>
+            </form>
           </div>
 
           {/* Right Controls */}
@@ -137,7 +147,7 @@ export function Navbar({ locale, categories }: NavbarProps) {
       {mobileMenuOpen && (
         <div className="md:hidden border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 pt-3 pb-6 space-y-4">
           {/* Mobile Search */}
-          <div className="relative w-full">
+          <form onSubmit={handleSearch} className="relative w-full">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
             <input
               type="text"
@@ -146,7 +156,7 @@ export function Navbar({ locale, categories }: NavbarProps) {
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
             />
-          </div>
+          </form>
 
           <div className="space-y-1">
             <Link

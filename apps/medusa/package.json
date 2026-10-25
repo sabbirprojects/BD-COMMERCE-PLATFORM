@@ -22,6 +22,7 @@
     "seed:foundation": "medusa exec ./src/scripts/seed/seed-foundation.ts",
     "seed:catalog": "medusa exec ./src/scripts/seed/seed-catalog.ts",
     "seed:rbac": "medusa exec ./src/scripts/seed/seed-rbac.ts",
+    "sync:meilisearch": "medusa exec ./src/scripts/sync-meilisearch.ts",
     "test:integration:http": "TEST_TYPE=integration:http NODE_OPTIONS=--experimental-vm-modules jest --silent=false --runInBand --forceExit",
     "test:integration:modules": "TEST_TYPE=integration:modules NODE_OPTIONS=--experimental-vm-modules jest --silent=false --runInBand --forceExit",
     "test:unit": "TEST_TYPE=unit NODE_OPTIONS=--experimental-vm-modules jest --silent --runInBand --forceExit"

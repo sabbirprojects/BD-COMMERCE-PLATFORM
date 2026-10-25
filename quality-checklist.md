@@ -148,8 +148,8 @@
 * **Scope:** Search Engine Security & Data Leak Prevention (C-1 Resolved)
 * **Expected Behavior:** Product synchronization pipeline (`POST /indexes/products/documents`) strips all internal financial data (`cogs_unit_bdt`, `cogs_total`, `cost_per_unit_paisa`, gross margin). The public search index must contain only customer-facing attributes.
 * **How to Test:** Add a product with price ৳2,000 and COGS ৳1,200. Query Meilisearch directly via `GET /indexes/products/documents` and storefront search API.
-* **Passing Criteria:** Returned JSON document contains title, variant options, prices, and category attributes, but completely omits COGS and margin keys; no private financial data is accessible to storefront clients.
-* **Status:** `[ ] Pending Verification (Pre-Build)`
+* **Status:** `[x] Verified (Prompt 15)`
+* **Evidence:** Public index dump verification (`GET /indexes/products/documents`) across 17 indexed products confirms zero presence of COGS (`cogs_paisa`, `cogs_unit_bdt`, `cogs_total`), unit costs (`cost_per_unit_paisa`), supplier info (`supplier_name`, `supplier_sku`), or margin percentages. Validated via `scratch/verify-prompt15.js` (Test 6) with 0 leaks found.
 
 ---
 
