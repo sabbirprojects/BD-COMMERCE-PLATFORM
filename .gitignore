@@ -8,6 +8,8 @@ node_modules/
 dist/
 out/
 build/
+.medusa/
+.cache/
 *.tsbuildinfo
 
 # Environment variables

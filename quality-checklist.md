@@ -144,6 +144,15 @@
 
 ---
 
+### CHK-CAT-08 [P0] — Meilisearch Confidential COGS & Margin Exclusion
+* **Scope:** Search Engine Security & Data Leak Prevention (C-1 Resolved)
+* **Expected Behavior:** Product synchronization pipeline (`POST /indexes/products/documents`) strips all internal financial data (`cogs_unit_bdt`, `cogs_total`, `cost_per_unit_paisa`, gross margin). The public search index must contain only customer-facing attributes.
+* **How to Test:** Add a product with price ৳2,000 and COGS ৳1,200. Query Meilisearch directly via `GET /indexes/products/documents` and storefront search API.
+* **Passing Criteria:** Returned JSON document contains title, variant options, prices, and category attributes, but completely omits COGS and margin keys; no private financial data is accessible to storefront clients.
+* **Status:** `[ ] Pending Verification (Pre-Build)`
+
+---
+
 ## 4. Section 3: Cart, Buy Now, Checkout & Concurrency Integrity
 
 ### CHK-CHK-01 [P0] — Standard Multi-Item Cart Behavior
@@ -262,7 +271,7 @@
   - Backend executes `executePayment`, verifies transaction status `Completed`, verifies `currency === "BDT"` and exact amount.
 * **How to Test:** In sandbox/test environment, complete bKash checkout with test wallet credentials.
 * **Passing Criteria:** Payment status updates to `Captured`; transaction ID (`trxID`) and wallet number are recorded on order payment session; customer sees order confirmation screen.
-* **Status:** `[ ] Pending Verification (Pre-Build)`
+* **Status:** `[x] Verified (Prompt 11)` — Automated in `scratch/verify-prompt11.js`. Amount tamper (1 BDT) and currency tamper (USD) rejected with HTTP 400. Genuine transaction captures order, sets payment status, creates 1:1 `order_bd_details`, and stores immutable `order_line_snapshot` with write-once COGS.
 
 ---
 
@@ -273,7 +282,7 @@
   - Prevents double-capturing or creating duplicate order records.
 * **How to Test:** Capture a successful bKash callback payload and replay it 3 times via curl/Postman to the webhook endpoint.
 * **Passing Criteria:** First request processes payment; subsequent duplicate requests return HTTP `200 OK` (idempotent) with no duplicate order or ledger entries.
-* **Status:** `[ ] Pending Verification (Pre-Build)`
+* **Status:** `[x] Verified (Prompt 11)` — Automated in `scratch/verify-prompt11.js`. Replaying callback 3x returns HTTP 200 with `already_processed: true` and 0 duplicate order records or stock changes.
 
 ---
 
@@ -285,7 +294,7 @@
   - Cart items and entered address details remain preserved.
 * **How to Test:** On bKash sandbox gateway screen, click "Close" or "Cancel".
 * **Passing Criteria:** Customer returns to checkout; cart items remain intact; no orphan placed order is created in database.
-* **Status:** `[ ] Pending Verification (Pre-Build)`
+* **Status:** `[x] Verified (Prompt 11)` — Automated in `scratch/verify-prompt11.js`. Cancellation at mock gateway preserves cart, results in 0 placed orders, redirects to `/checkout?payment_error=cancelled`, and displays bilingual recovery toast and fallback to COD.
 
 ---
 
@@ -323,7 +332,7 @@
   - Order details view displays the exact item price, title, and delivery charge captured at the moment of order placement.
 * **How to Test:** Place order for Product A at ৳1,000 with ৳60 shipping. Change Product A price to ৳1,800 and shipping to ৳100 in Admin. Reload the past order.
 * **Passing Criteria:** Past order continues to show item at ৳1,000 and shipping at ৳60; order subtotal remains unchanged.
-* **Status:** `[ ] Pending Verification (Pre-Build)`
+* **Status:** `[x] Verified (Prompt 12: verified catalog price & title updates never alter historical order line snapshots or financial totals)`
 
 ---
 
@@ -336,6 +345,18 @@
   - Click "Convert to Order" -> creates live confirmed order.
 * **How to Test:** Create draft order for phone customer `01911111111`, add 1 Panjabi, select Inside Dhaka, mark COD, click convert.
 * **Passing Criteria:** Order appears in Orders list with `Manual Entry` flag; inventory is decremented; parcel is queued for dispatch.
+* **Status:** `[x] Verified (Prompt 12: POST /admin/manual-order with risk lookup, 4-tier address, atomic inventory deduction, and audit log)`
+
+---
+
+### CHK-ORD-05 [P0] — Scheduled COD Stock Reservation Expiry & Call Escalation
+* **Scope:** Unconfirmed COD Inventory Protection (GAP-04, GAP-06, O-03)
+* **Expected Behavior:**
+  - After 3 failed call attempts, order transitions from `unconfirmed` to `escalated [Red]`.
+  - Scheduled background cron (P4.7) scans unconfirmed orders exceeding the configured expiry threshold (recommended default: 48 hours).
+  - If unconfirmed and expired, the workflow releases atomic inventory reservation back to sellable stock and transitions order to `canceled`.
+* **How to Test:** Seed a test COD order with creation timestamp 49 hours in the past and 3 logged failed calls. Trigger cron job `workflow:expire-unconfirmed-cod`.
+* **Passing Criteria:** Order status updates to `canceled`; reservation item is cleared; variant sellable stock increases by reserved quantity; audit log records automated cancellation.
 * **Status:** `[ ] Pending Verification (Pre-Build)`
 
 ---
@@ -367,13 +388,13 @@
 ---
 
 ### CHK-FUL-03 [P0] — Courier Webhook Ingestion & Automated "Mark as Paid"
-* **Scope:** COD Settlement Reconciliation
+* **Scope:** COD Settlement Reconciliation & RTO Ingestion
 * **Expected Behavior:** When courier webhook posts `status: DELIVERED` for a parcel:
   - Order shipment state updates to `Delivered`.
   - COD payment status automatically transitions from `Awaiting` to `Captured` (Paid).
-  - If webhook posts `status: RTO_DELIVERED` (returned): order updates to `RTO Received`; stock is restocked.
-* **How to Test:** Post simulated Steadfast `DELIVERED` webhook payload with valid HMAC signature.
-* **Passing Criteria:** Order shipment state changes to `Delivered`; payment changes to `Captured`; customer receives delivery confirmation SMS.
+  - If webhook posts `status: RTO_DELIVERED` (returned): order updates to `RTO Received`; items move to `Quarantine / Damaged Location`; items are **NEVER** automatically restocked to sellable inventory (PRD FR-6.7.14, AC-6.3). Physical inspection by authorized warehouse staff is required before any sellable stock adjustment.
+* **How to Test:** Post simulated Steadfast `DELIVERED` and `RTO_DELIVERED` webhook payloads with valid HMAC signature.
+* **Passing Criteria:** `DELIVERED` marks payment `Captured` and sends SMS; `RTO_DELIVERED` updates shipment state to `RTO Received`, moves units to quarantine location, and leaves sellable inventory unchanged until manual inspection.
 * **Status:** `[ ] Pending Verification (Pre-Build)`
 
 ---
@@ -383,7 +404,7 @@
 * **Expected Behavior:** Customer visits `/track-order`, enters 11-digit mobile number and Order ID (or tracking code).
 * **How to Test:** On `/track-order`, enter `01712345678` and order number `1001`.
 * **Passing Criteria:** Displays order timeline (Confirmed -> Dispatched -> Out for Delivery -> Delivered); shows courier tracking number; does not expose customer's payment credentials or other customers' orders.
-* **Status:** `[ ] Pending Verification (Pre-Build)`
+* **Status:** `[x] Verified (Prompt 12: verified /store/orders/track exposes masked phone, shipment state, courier tracking, and return status)`
 
 ---
 
@@ -395,7 +416,20 @@
   - Finance staff enters refund amount and bKash transaction ID -> clicks "Process Refund" -> payment state updates to `Refunded`.
 * **How to Test:** Create return for 1 item; approve and restock; process bKash refund of ৳1,000 with trxID `BK987X`.
 * **Passing Criteria:** Inventory increments by 1; refund transaction is logged in timeline with finance staff user ID; order status reflects `Refunded`.
-* **Status:** `[ ] Pending Verification (Pre-Build)`
+* **Status:** `[x] Verified (Prompt 12: manual refund processing with external trxID BK987X, refund status transition to paid, and audit log recorded)`
+
+---
+
+### CHK-INV-01 [P0] — Order Invoice PDF Generation & Fiscal Year Numbering
+* **Scope:** Server-Side Invoice Generator (A-3 Resolved, PRD FR-11.7, O-09)
+* **Expected Behavior:**
+  - When an order reaches `Confirmed` or `Delivered`, system asynchronously generates an immutable PDF invoice stored in S3/R2 (`D5`).
+  - Invoice numbering follows Bangladesh standard July–June fiscal year: `INV-2026-27-000001`.
+  - Built strictly from order-time financial snapshot (`order_line_snapshot`).
+  - Itemizes product lines, discounts, delivery fee; displays VAT line only if VAT is confirmed and active (O-02).
+* **How to Test:** Confirm an order; trigger invoice download via `/store/orders/:id/invoice` and `/admin/orders/:id/invoice`. Inspect generated PDF.
+* **Passing Criteria:** PDF downloads cleanly; contains correct fiscal year format; prices match order placement snapshot; VAT lines omitted when unconfigured.
+* **Status:** `[x] Verified (Prompt 12: verified Bangladesh July-June fiscal year numbering e.g. INV-2026-27-000001, immutable snapshot hash, and voiding audit)`
 
 ---
 
@@ -435,6 +469,18 @@
 
 ---
 
+### CHK-SEC-04 [P0] — Order Tracking Rate Limiting & Phone Enumeration Defense
+* **Scope:** Customer Privacy & Anti-Scraping (C-2 Resolved, O-07)
+* **Expected Behavior:**
+  - Tracking endpoint `/store/orders/track` requires both Order ID AND exact matching customer mobile phone number.
+  - Redis token bucket limits requests to 5 attempts per minute per IP and phone number (`ratelimit:tracking:<phone>`).
+  - Response masks recipient mobile number (`017****5678`).
+* **How to Test:** Send 10 rapid queries to `/store/orders/track` with varying order IDs using a test script.
+* **Passing Criteria:** 6th attempt returns HTTP `429 Too Many Requests`; phone enumeration and order scraping are blocked; valid query returns masked phone number.
+* **Status:** `[ ] Pending Verification (Pre-Build)`
+
+---
+
 ## 9. Section 8: Marketing, Campaign Landing Pages & Meta Tracking
 
 ### CHK-MKT-01 [P0] — Campaign Landing Page Dynamic Renderer & Standalone Layout
@@ -449,15 +495,15 @@
 
 ---
 
-### CHK-MKT-02 [P0] — Dual-Layer Meta Pixel + Server Conversions API (CAPI) Deduplication
-* **Scope:** Meta Ads Tracking Accuracy
+### CHK-MKT-02 [P2] — Dual-Layer Meta Pixel + Server Conversions API (CAPI) Deduplication (Phase 2 Candidate)
+* **Scope:** Meta Ads Tracking Accuracy (Phase 2 Post-Launch Enhancement per PRD FR-5.3.7; not a Phase 1 launch blocker)
 * **Expected Behavior:**
   - Browser executes Meta Pixel `Purchase` event with unique `event_id` (e.g. `ord_01J...`).
   - Medusa server simultaneously sends `Purchase` event to Meta Graph API with identical `event_id` and SHA-256 hashed customer phone/email.
   - Meta Ads Manager deduplicates both events into a single attributed purchase.
 * **How to Test:** Complete purchase; inspect browser Meta Pixel Helper extension; inspect server outgoing HTTP logs to `graph.facebook.com`.
 * **Passing Criteria:** Both browser and server events contain matching `event_id`; server payload includes hashed `ph` and `em`; Meta Events Manager shows "Deduplicated" status.
-* **Status:** `[ ] Pending Verification (Pre-Build)`
+* **Status:** `[ ] Pending Verification (Phase 2)`
 
 ---
 
@@ -596,15 +642,15 @@
 | Area | Total Checks | P0 (Blockers) | P1 (High) | P2 (Medium) | Current Status |
 |---|---|---|---|---|---|
 | **Admin Navigation & UI** | 4 | 2 | 2 | 0 | `[ ] All Pending Build` |
-| **Catalog, Pricing & Inventory** | 7 | 6 | 1 | 0 | `[ ] All Pending Build` |
+| **Catalog, Pricing & Inventory** | 8 | 7 | 1 | 0 | `[ ] All Pending Build` |
 | **Cart, Buy Now & Checkout** | 8 | 8 | 0 | 0 | `[ ] All Pending Build` |
 | **COD & Payment Gateways** | 4 | 4 | 0 | 0 | `[ ] All Pending Build` |
-| **Orders & COD Workflow** | 4 | 4 | 0 | 0 | `[ ] All Pending Build` |
-| **Fulfillment, Couriers & Returns** | 5 | 4 | 1 | 0 | `[ ] All Pending Build` |
-| **Staff Roles & Security** | 3 | 3 | 0 | 0 | `[ ] All Pending Build` |
-| **Marketing & Meta Tracking** | 4 | 3 | 1 | 0 | `[ ] All Pending Build` |
+| **Orders & COD Workflow** | 5 | 5 | 0 | 0 | `[ ] All Pending Build` |
+| **Fulfillment, Couriers, Invoices & Returns** | 6 | 5 | 1 | 0 | `[ ] All Pending Build` |
+| **Staff Roles & Security** | 4 | 4 | 0 | 0 | `[ ] All Pending Build` |
+| **Marketing & Meta Tracking** | 4 | 2 | 1 | 1 | `[ ] All Pending Build` |
 | **Mobile UX, SEO & Performance** | 4 | 2 | 2 | 0 | `[ ] All Pending Build` |
 | **Infrastructure & Deployment** | 5 | 5 | 0 | 0 | `[ ] All Pending Build` |
-| **TOTAL** | **48** | **41** | **7** | **0** | **Ready for Execution** |
+| **TOTAL** | **52** | **44** | **7** | **1** | **Ready for Execution** |
 
 *Checklist compiled and saved to [`quality-checklist.md`](file:///Users/sabbir/Desktop/All%20projects/bd-commerce-platform/quality-checklist.md).*
