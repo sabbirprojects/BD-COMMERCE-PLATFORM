@@ -1,0 +1,42 @@
+[
+  {
+    "id": "BD10",
+    "name": { "local": "বরিশাল", "en": "Barishal" },
+    "sort_order": 1
+  },
+  {
+    "id": "BD20",
+    "name": { "local": "চট্টগ্রাম", "en": "Chattogram" },
+    "sort_order": 2
+  },
+  {
+    "id": "BD30",
+    "name": { "local": "ঢাকা", "en": "Dhaka" },
+    "sort_order": 3
+  },
+  {
+    "id": "BD40",
+    "name": { "local": "খুলনা", "en": "Khulna" },
+    "sort_order": 4
+  },
+  {
+    "id": "BD45",
+    "name": { "local": "ময়মনসিংহ", "en": "Mymensingh" },
+    "sort_order": 5
+  },
+  {
+    "id": "BD50",
+    "name": { "local": "রাজশাহী", "en": "Rajshahi" },
+    "sort_order": 6
+  },
+  {
+    "id": "BD55",
+    "name": { "local": "রংপুর", "en": "Rangpur" },
+    "sort_order": 7
+  },
+  {
+    "id": "BD60",
+    "name": { "local": "সিলেট", "en": "Sylhet" },
+    "sort_order": 8
+  }
+]
