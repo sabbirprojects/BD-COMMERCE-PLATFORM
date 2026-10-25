@@ -1,0 +1,80 @@
+# 知识卡导出索引文件
+schema_version: 1
+locale: en-US
+branch: main
+nodes_managed: true
+exported_at: "2026-10-24T15:34:19Z"
+modules:
+    "":
+        dir_name: BD Commerce Platform Monorepo
+        title: BD Commerce Platform Monorepo
+        scope:
+            - .env.example
+            - .gitignore
+            - AGENTS.md
+            - Cross-Audit Report v4 vs PRD v2.md
+            - PROJECT_CONTEXT_HANDOFF.md
+            - agent.md
+            - cross-document-verification.md
+            - database.md
+            - dfd-review.md
+            - dfd.md
+            - docker-compose.yml
+            - final-system-validation.md
+            - ideaproposition.md
+            - package-lock.json
+            - package.json
+            - prd.md
+            - quality-checklist.md
+            - technical-plan.md
+            - user-journeys.md
+        source_files: []
+        children:
+            - api_app
+            - docs
+            - medusa_backend
+            - web_frontend
+        depends_on: []
+        related_to: []
+    api_app:
+        dir_name: BD Commerce Platform API Server
+        title: BD Commerce Platform API Server
+        scope:
+            - apps/api/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: medusa_backend
+            - path: web_frontend
+    docs:
+        dir_name: Architecture & Design Documentation
+        title: Architecture & Design Documentation
+        scope:
+            - docs/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    medusa_backend:
+        dir_name: Medusa Commerce Backend Application
+        title: Medusa Commerce Backend Application
+        scope:
+            - apps/medusa/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: api_app
+            - path: web_frontend
+    web_frontend:
+        dir_name: BD Commerce Web Frontend (Next.js App Router)
+        title: BD Commerce Web Frontend (Next.js App Router)
+        scope:
+            - apps/web/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: api_app
+            - path: medusa_backend

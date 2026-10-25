@@ -1,0 +1,1 @@
+Development server runs on port 3000 via `npm run dev` (alias `next dev -p 3000`); production build via `next build` and start via `next start -p 3000`. Linting uses `next lint`.

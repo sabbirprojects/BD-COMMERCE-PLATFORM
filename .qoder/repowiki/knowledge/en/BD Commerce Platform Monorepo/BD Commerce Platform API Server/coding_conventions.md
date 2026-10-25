@@ -1,0 +1,2 @@
+- Environment variables are loaded from the repository root `.env` before any other imports, then reloaded from the current directory as a fallback.
+- The Prisma client is instantiated once and cached on `globalThis` to prevent multiple connections during hot reloads, with log levels selected based on `NODE_ENV`.

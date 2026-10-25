@@ -1,0 +1,1 @@
+Next.js 15 App Router frontend serving the BD Commerce Platform's landing page and root layout, styled with Tailwind CSS and Lucide icons.

@@ -1,0 +1,45 @@
+---
+description: Mandatory project authority, implementation scope, and safety constraints for the Bangladesh single-vendor e-commerce platform.
+alwaysApply: true
+---
+
+# Bangladesh Commerce Platform — Core Engineering Rules
+
+## 1. Execution Protocol & Context Management
+1. **Mandatory Documents**: Always read [`agent.md`](file:///Users/sabbir/Desktop/All%20projects/bd-commerce-platform/agent.md) and the selected prompt in [`prompt.md`](file:///Users/sabbir/Desktop/All%20projects/bd-commerce-platform/prompt.md) before implementing any work.
+2. **Targeted Reading**: Read only the sections listed under that prompt's `READ FIRST`, plus specific files necessary to establish actual implementation context. Avoid scanning unrelated source files.
+3. **Prompt Lifecycle**: Strictly adhere to the `PREREQUISITE`, `SCOPE`, `DONE WHEN`, and `HANDOFF` sections for the active prompt.
+4. **Single-Prompt Scope**: Execute exactly one numbered prompt per session unless the user explicitly requests chaining or running multiple prompts.
+5. **No Premature Advancement**: Never start the next numbered prompt while the current prompt's required completion criteria remain unverified with concrete evidence.
+
+## 2. Document Authority Order
+When documents conflict, follow this strict precedence hierarchy:
+1. **Installed Medusa v2.22.0 Behavior**: Absolute truth in `node_modules/@medusajs/*`.
+2. **[`database.md`](file:///Users/sabbir/Desktop/All%20projects/bd-commerce-platform/database.md)**: Canonical schema, tables, columns, constraints, and persistence rules.
+3. **[`prd.md`](file:///Users/sabbir/Desktop/All%20projects/bd-commerce-platform/prd.md)**: Business requirements and functional scope.
+4. **[`dfd.md`](file:///Users/sabbir/Desktop/All%20projects/bd-commerce-platform/dfd.md)**: Data flows, pipelines, and state transitions.
+5. **[`docs/architecture.md`](file:///Users/sabbir/Desktop/All%20projects/bd-commerce-platform/docs/architecture.md)**: System topology, module boundaries, and service design.
+6. **[`prompt.md`](file:///Users/sabbir/Desktop/All%20projects/bd-commerce-platform/prompt.md)**: Sequential execution plan and prompt scope.
+
+**Important Note on `AGENTS.md`**: Treat `agent.md` as the mandatory standing project instruction. The generic InsForge scaffold instructions in `AGENTS.md` do NOT govern this platform. Never install `@insforge/sdk`, call InsForge MCP tools, or apply InsForge patterns.
+
+## 3. Architecture & Business Invariants
+1. **Single-Vendor Only**: Preserve single-vendor B2C merchant scope. Never introduce multi-vendor architectures, seller onboarding, commission split engines, or vendor dashboards.
+2. **Medusa-First Primitives**: Use native Medusa v2 modules (Product, Pricing, Inventory, Cart, Order, Payment, Fulfillment, Tax, Translation, RBAC, Notification). Never fork core tables or recreate existing commerce primitives.
+3. **Money Representation**:
+   - Medusa core tables store amounts in **BDT major units** (`numeric`).
+   - Bangladesh custom tables store amounts strictly in **integer paisa** (`*_paisa`).
+   - All conversions must use [`apps/medusa/src/lib/money.ts`](file:///Users/sabbir/Desktop/All%20projects/bd-commerce-platform/apps/medusa/src/lib/money.ts). Never confuse `*_paisa` with major-unit amounts; the suffix `_bdt` on paisa columns is strictly banned.
+4. **4 Independent Operational Status Dimensions**: Never collapse into a single status badge:
+   - Order Status (`order.status`)
+   - Payment Status (`payment_collection.status` / native payment status)
+   - Shipment Status (derived via `v_order_shipment_state` from native fulfillment + `courier_consignment`)
+   - Return / Refund Review Status (native `return` + `return_review.status`)
+5. **Privacy of Financial Metrics**: Never expose Cost of Goods Sold (COGS), product costs (`cost_per_unit_paisa`), supplier identities, or profit margins in public storefront APIs or Meilisearch indexes.
+6. **Manual-Only Returns & Quarantined Restock**: Never auto-approve returns, never execute automated refund payouts via APIs, and never automatically restock returned or RTO items into sellable inventory without physical manual warehouse inspection.
+7. **Prohibited Integrations & Features**: Never introduce unapproved payment providers (SSLCommerz, Shurjopay, Foster, cards), multi-warehouse routing, digital downloads, pre-orders, or conflicting business rules. Phase 1 payment gateways are restricted to COD, direct bKash merchant API, and direct Nagad merchant API.
+
+## 4. Safety, Persistence & Verification Constraints
+1. **Preserve Legacy & Container Data**: Never drop or alter Docker volumes. Never destructively alter or `DROP` the legacy Prisma tables in the shared database: `categories`, `order_items`, `orders`, `products`, `users`.
+2. **Security & Secrets**: Never commit secrets, tokens, passwords, private keys, or `.env` files to Git. Never weaken server-side authorization, validation, CSRF, rate limits, or security checks to make tests pass. Nagad private key must remain filesystem-referenced (`NAGAD_PRIVATE_KEY_PATH`, mode 0600).
+3. **Honest Evidence-Based Verification**: Keep the repository buildable (`npm run build:medusa`, and `npm run build:web` once storefront work begins). Always record and report real terminal commands, HTTP statuses, and database queries. Never fabricate success or claim a test passed without execution.

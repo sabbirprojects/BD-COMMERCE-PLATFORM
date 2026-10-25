@@ -1,0 +1,2 @@
+- Pages and layouts are defined as default-exported React function components inside `src/app/` following Next.js App Router conventions.
+- Styling is done exclusively with Tailwind utility classes applied directly to JSX elements rather than separate CSS modules.

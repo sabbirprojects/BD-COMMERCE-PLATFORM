@@ -1,0 +1,26 @@
+schema_version: 1
+module_path: ""
+title: BD Commerce Platform Monorepo
+scope:
+    - .env.example
+    - .gitignore
+    - AGENTS.md
+    - Cross-Audit Report v4 vs PRD v2.md
+    - PROJECT_CONTEXT_HANDOFF.md
+    - agent.md
+    - cross-document-verification.md
+    - database.md
+    - dfd-review.md
+    - dfd.md
+    - docker-compose.yml
+    - final-system-validation.md
+    - ideaproposition.md
+    - package-lock.json
+    - package.json
+    - prd.md
+    - quality-checklist.md
+    - technical-plan.md
+    - user-journeys.md
+source_files: []
+depends_on: []
+related_to: []

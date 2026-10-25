@@ -1,0 +1,2 @@
+- Child applications are addressed from the root via NPM workspace scripts rather than direct `cd` commands.
+- Shared infrastructure (Postgres, Redis, Meilisearch) is provisioned exclusively through the root `docker-compose.yml` and referenced by environment variables.

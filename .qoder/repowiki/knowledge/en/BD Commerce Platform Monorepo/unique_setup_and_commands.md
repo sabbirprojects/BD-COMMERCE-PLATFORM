@@ -1,0 +1,1 @@
+Root-level npm scripts orchestrate every child: `npm run dev:web|api|medusa` for local development, `npm run build:web|api|medusa` for builds, `npm run prisma:generate|migrate|studio` against the API workspace, and `npm run docker:up|down|logs|ps` to manage the shared Postgres/Redis/Meilisearch stack defined in `docker-compose.yml`.

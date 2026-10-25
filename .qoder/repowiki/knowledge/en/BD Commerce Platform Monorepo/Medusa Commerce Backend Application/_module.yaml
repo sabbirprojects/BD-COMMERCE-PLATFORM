@@ -1,0 +1,10 @@
+schema_version: 1
+module_path: medusa_backend
+title: Medusa Commerce Backend Application
+scope:
+    - apps/medusa/
+source_files: []
+depends_on: []
+related_to:
+    - path: api_app
+    - path: web_frontend

@@ -1,0 +1,1 @@
+Medusa v2 headless commerce application extending the framework with custom business modules (audit, campaigns, catalog, courier, orders, payments, settings) and admin/store API routes.

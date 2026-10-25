@@ -1,0 +1,1 @@
+Next.js 15.1 with App Router, React 19, TypeScript 5.7, Tailwind CSS 3.4.17, Autoprefixer, PostCSS, and Lucide React icons.

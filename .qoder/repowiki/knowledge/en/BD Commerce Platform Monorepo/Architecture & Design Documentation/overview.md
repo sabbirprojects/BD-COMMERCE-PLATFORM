@@ -1,0 +1,1 @@
+Authoritative architecture, data-model, DFD, and review documentation for the Bangladesh single-vendor Medusa v2 e-commerce platform.

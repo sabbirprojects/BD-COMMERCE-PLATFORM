@@ -1,0 +1,5 @@
+- Each custom module under `src/modules/bd-*` exposes a default export from `index.ts` that calls `Module(MODULE_NAME, { service: ... })` and re-exports a constant like `BD_*_MODULE` used elsewhere for link resolution.
+- Module services extend `MedusaService({...})` passing only the local model entities, keeping persistence logic declarative rather than hand-written.
+- Database schema changes are versioned as numbered TypeORM migration files alongside a sibling `.snapshot-<module>.json` snapshot kept in sync.
+- Cross-module associations are expressed in `src/links/*.ts` using `defineLink(OtherModule.linkable.entity, LocalModule.linkable.entity)` instead of direct imports between modules.
+- Custom HTTP routes follow Medusa's convention of placing route handlers under `src/api/{admin|store}/custom/` as per-route files, with global middleware centralized in `src/api/middlewares.ts`.

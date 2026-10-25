@@ -1,0 +1,1 @@
+Medusa Framework v2.22.0 (headless commerce), TypeScript, TypeORM migrations, Vite for the admin frontend, Jest + @swc/jest for tests, Zod for validation, React + react-router-dom for admin UI, Redis optional via `REDIS_URL`.

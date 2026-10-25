@@ -1,0 +1,19 @@
+- generic [ref=e3]:
+  - generic [ref=e85]:
+    - generic [ref=e91]:
+      - heading "Welcome to Medusa" [level=1] [ref=e92]
+      - paragraph [ref=e93]: Sign in to access the account area
+    - generic [ref=e95]:
+      - generic [ref=e96]:
+        - textbox "Email" [ref=e99]: verify-ui@bd-commerce.local
+        - generic [ref=e101]:
+          - textbox [ref=e102]:
+            - /placeholder: Password
+            - text: Iel3a1vf5sSDKOyGoJTD
+          - button "Show password" [ref=e104] [cursor=pointer]
+      - button "Continue with Email" [ref=e110] [cursor=pointer]
+    - generic [ref=e111]:
+      - text: Forgot password? -
+      - link "Reset" [ref=e112] [cursor=pointer]:
+        - /url: /app/reset-password
+  - region "Notifications alt+T"

@@ -1,0 +1,1 @@
+Node.js monorepo using NPM workspaces; shared infrastructure via Docker Compose (PostgreSQL 16, Redis 7, Meilisearch v1.11); Prisma for the API layer's schema/migrations; Next.js App Router + Tailwind CSS for the frontend; Medusa v2 as the headless commerce core.

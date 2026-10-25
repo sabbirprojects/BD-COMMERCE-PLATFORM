@@ -1,0 +1,4 @@
+- Each document header carries a version line, status label (e.g. 'Authoritative Reference'), date, and a 'Reconciled With' list enumerating every artifact it aligns with.
+- Findings from reviews are resolved inline using explicit tags such as `(A-2 Resolved)`, `(B-2 Resolved)`, `(C-3 Resolved)` so traceability back to the review matrix is preserved.
+- Superseded or non-authoritative files carry an upfront warning banner (e.g. the SUPERSEDED notice in `data-models.md`) pointing readers to the canonical document instead of being silently deleted.
+- Bangladesh-specific business rules are expressed as numbered requirements (FR-*, Q#*) and security/architecture findings (A-*, B-*, C-*, D-*, E-*) referenced throughout the text.

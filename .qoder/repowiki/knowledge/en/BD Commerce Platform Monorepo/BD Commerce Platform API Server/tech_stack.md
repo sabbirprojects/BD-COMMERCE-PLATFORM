@@ -1,0 +1,1 @@
+Express 4 + TypeScript (ES2022 target, NodeNext module resolution) compiled to CommonJS under `dist/`; Prisma Client 5 for ORM with generated schema at `prisma/schema.prisma`; runtime deps include `cors`, `dotenv`, `ioredis`, `meilisearch`, and `zod` for validation.

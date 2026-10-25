@@ -1,0 +1,1 @@
+NPM workspaces monorepo wiring a Next.js storefront, an Express API layer, and a Medusa commerce backend behind shared PostgreSQL, Redis, and Meilisearch infrastructure.

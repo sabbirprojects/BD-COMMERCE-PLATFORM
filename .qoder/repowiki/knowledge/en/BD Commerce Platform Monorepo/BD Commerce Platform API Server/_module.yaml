@@ -1,0 +1,10 @@
+schema_version: 1
+module_path: api_app
+title: BD Commerce Platform API Server
+scope:
+    - apps/api/
+source_files: []
+depends_on: []
+related_to:
+    - path: medusa_backend
+    - path: web_frontend

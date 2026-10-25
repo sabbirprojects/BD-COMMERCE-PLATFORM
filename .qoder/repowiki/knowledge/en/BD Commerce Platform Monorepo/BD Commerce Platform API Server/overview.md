@@ -1,0 +1,1 @@
+Express-based Node.js backend serving the BD Commerce Platform, providing health checks, a versioned API root, and Prisma-managed database access.

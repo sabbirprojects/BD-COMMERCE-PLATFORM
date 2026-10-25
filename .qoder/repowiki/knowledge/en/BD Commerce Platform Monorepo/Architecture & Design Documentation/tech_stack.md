@@ -1,0 +1,1 @@
+Markdown-only design documentation referencing MedusaJS v2 (`@medusajs/medusa@^2.0`), Next.js 15 App Router, PostgreSQL 16, Redis 7, Meilisearch v1.11, bKash/Nagad payment gateways, and Steadfast/Pathao/RedX couriers as the documented target stack.
