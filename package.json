@@ -10,8 +10,12 @@
   "scripts": {
     "dev:web": "npm run dev --workspace=apps/web",
     "dev:api": "npm run dev --workspace=apps/api",
+    "dev:medusa": "npm run dev --workspace=apps/medusa",
     "build:web": "npm run build --workspace=apps/web",
     "build:api": "npm run build --workspace=apps/api",
+    "build:medusa": "npm run build --workspace=apps/medusa",
+    "start:medusa": "npm run start --workspace=apps/medusa",
+    "medusa:migrate": "npm run migrate --workspace=apps/medusa",
     "prisma:generate": "npm run prisma:generate --workspace=apps/api",
     "prisma:migrate": "npm run prisma:migrate --workspace=apps/api",
     "prisma:studio": "npm run prisma:studio --workspace=apps/api",

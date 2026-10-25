@@ -8,6 +8,10 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['var(--font-inter)', 'var(--font-bengali)', 'Hind Siliguri', 'Noto Sans Bengali', 'system-ui', 'sans-serif'],
+        bengali: ['var(--font-bengali)', 'Hind Siliguri', 'Noto Sans Bengali', 'system-ui', 'sans-serif'],
+      },
       colors: {
         brand: {
           50: '#ecfdf5',
