@@ -63,6 +63,9 @@ module.exports = defineConfig({
       resolve: "./src/modules/bd-campaigns",
     },
     {
+      resolve: "./src/modules/bd-reports",
+    },
+    {
       resolve: "@medusajs/medusa/payment",
       options: {
         providers: [

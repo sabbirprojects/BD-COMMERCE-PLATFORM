@@ -35,9 +35,25 @@ export default defineMiddlewares({
       middlewares: requireBdRoles(['owner', 'finance']),
     },
     {
-      // Prompt 10 / CHK-SEC-01: Contribution profit & COGS margins are Owner + Finance only
-      matcher: '/admin/reports/contribution-profit',
+      // Prompt 10 & Prompt 16 / CHK-SEC-01: Contribution profit, COGS margins, COD settlement, and Attribution reports are Owner + Finance only
+      matcher: '/admin/reports/profit*',
       middlewares: requireBdRoles(['owner', 'finance']),
+    },
+    {
+      matcher: '/admin/reports/contribution-profit*',
+      middlewares: requireBdRoles(['owner', 'finance']),
+    },
+    {
+      matcher: '/admin/reports/cod-settlement*',
+      middlewares: requireBdRoles(['owner', 'finance']),
+    },
+    {
+      matcher: '/admin/reports/attribution*',
+      middlewares: requireBdRoles(['owner', 'finance']),
+    },
+    {
+      matcher: '/admin/reports/dashboard*',
+      middlewares: requireBdRoles(['owner', 'manager', 'finance']),
     },
     {
       // Prompt 10 / CHK-SEC-01: Payment Gateways config is Owner only

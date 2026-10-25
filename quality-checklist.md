@@ -139,8 +139,11 @@
 * **Scope:** Financial Data Security
 * **Expected Behavior:** Unit Cost (COGS) field on variant editing is visible and editable only to `Super Admin (Owner)` and `Finance` roles. Hidden from `Order Call Center` and `Warehouse` staff.
 * **How to Test:** Log in as Call Center user; open product variant detail drawer. Log in as Super Admin; inspect same drawer.
-* **Passing Criteria:** COGS input field and values are completely absent from DOM and network responses for unauthorized staff; visible and editable for Super Admin.
-* **Status:** `[ ] Pending Verification (Pre-Build)`
+* **Status:** `[x] Verified (Prompt 16)`
+* **Verification Evidence:**
+  - In `apps/medusa/src/api/middlewares.ts`, `/admin/products/:id/variants/costs` and `/admin/products/:id/variants/:variant_id/cost` are strictly guarded by `requireBdRoles(['owner', 'finance'])`.
+  - In `apps/medusa/src/admin/widgets/product-bd-profile.tsx`, when `costsError.status === 403` (for unauthorized staff such as Call Center or Warehouse), COGS and margin breakdown sections are completely suppressed and omitted from rendering.
+  - COGS and variant costs are never returned to unauthorized roles via API or UI.
 
 ---
 
@@ -443,8 +446,12 @@
   - `Finance / Accounts`: Full access to contribution reports, payment settings, and refund payouts.
   - `Super Admin (Owner)`: Full unrestricted access.
 * **How to Test:** Log in with Call Center credentials; attempt to open `/app/settings/bangladesh` or `/app/reports/contribution-profit`.
-* **Passing Criteria:** Admin UI hides restricted links; direct URL navigation or API requests return `403 Forbidden`.
-* **Status:** `[ ] Pending Verification (Pre-Build)`
+* **Status:** `[x] Verified (Prompt 16)`
+* **Verification Evidence:**
+  - `requireBdRoles(['owner', 'finance'])` middleware strictly gates `/admin/reports/profit*`, `/admin/reports/contribution-profit*`, `/admin/reports/cod-settlement*`, `/admin/reports/attribution*`, `/admin/products/:id/variants/costs`, and `/admin/products/:id/variants/:variant_id/cost`.
+  - `/admin/settings/bangladesh` and `/admin/settings/gateways` strictly require `['owner']` (or `['owner', 'manager', 'finance']` for read).
+  - Automated tests in `scratch/verify-prompt10.js` (Test 2) and `scratch/verify-prompt16.js` (Tests 5, 6, 7) confirmed that Call Center user `callcenter_test@bd-commerce.com` receives HTTP 403 Forbidden when requesting `/admin/settings/bangladesh`, `/admin/settings/gateways`, `/admin/reports/contribution-profit`, `/admin/reports/cod-settlement`, and `/admin/reports/attribution`.
+  - Finance role `finance_test@bd-commerce.com` and Owner role `admin@bd-commerce.com` both successfully receive HTTP 200 on all financial reports endpoints.
 
 ---
 
