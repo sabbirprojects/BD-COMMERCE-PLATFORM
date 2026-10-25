@@ -48,6 +48,8 @@ export async function POST(request: Request) {
       street_address,
       postal_code,
       utm_params,
+      landing_page_id,
+      ad_campaign_id,
       acknowledge_price_changes,
       payment_method = 'cod',
       locale = 'en',
@@ -65,6 +67,8 @@ export async function POST(request: Request) {
       streetAddress: street_address || '',
       postalCode: postal_code || undefined,
       utmParams: utm_params || undefined,
+      landingPageId: landing_page_id || utm_params?.landing_page_id,
+      adCampaignId: ad_campaign_id || utm_params?.ad_campaign_id,
       idempotencyKey,
     })
 

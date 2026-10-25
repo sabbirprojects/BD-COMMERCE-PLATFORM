@@ -7,6 +7,7 @@ import { Navbar } from '@/components/layout/Navbar'
 import { Footer } from '@/components/layout/Footer'
 import { CartProvider } from '@/context/CartContext'
 import { MiniCart } from '@/components/cart/MiniCart'
+import { MetaPixel } from '@/components/analytics/MetaPixel'
 import '../globals.css'
 
 const inter = Inter({
@@ -77,6 +78,7 @@ export default async function LocaleLayout({
       className={`${inter.variable} ${hindSiliguri.variable} font-sans min-h-screen flex flex-col bg-slate-50/50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 antialiased selection:bg-emerald-500 selection:text-white`}
     >
       <CartProvider>
+        <MetaPixel />
         <Navbar locale={typedLocale} categories={categories} />
         <main className="flex-1">{children}</main>
         <Footer locale={typedLocale} categories={categories} />

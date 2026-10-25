@@ -491,7 +491,11 @@
   - Hero image, offer bundles, reviews, and embedded checkout form render cleanly.
 * **How to Test:** Create landing page in Admin with embedded checkout; visit URL in mobile viewport.
 * **Passing Criteria:** Page loads with 0 distractions; embedded checkout form permits placing order directly from the landing page.
-* **Status:** `[ ] Pending Verification (Pre-Build)`
+* **Status:** `[x] Verified (Prompt 14)`
+* **Verification Evidence:**
+  - Automated test script `scratch/verify-prompt14.js` Test 7 confirmed `GET /en/lp/:slug` renders standalone layout with zero distractions.
+  - Client components `Navbar` and `Footer` detect `/lp/` path and return `null`, eliminating global store navigation, search input, and multi-tier footer links.
+  - Mode B direct embedded checkout (`EmbeddedCheckout.tsx`) renders inline with full bundle offer selector, live BDT price updates, district/thana cascades, and instant COD submit.
 
 ---
 
@@ -515,7 +519,12 @@
   - Reflected in `/app/reports/contribution-profit` under campaign analytics.
 * **How to Test:** Visit store with test UTM URL; browse 3 pages; place an order. Inspect order metadata in Admin.
 * **Passing Criteria:** Order record contains `utm_source: "facebook"` and `utm_campaign: "eid_collection"`; reports table attributes revenue to this campaign.
-* **Status:** `[ ] Pending Verification (Pre-Build)`
+* **Status:** `[x] Verified (Prompt 14)`
+* **Verification Evidence:**
+  - Mode B embedded checkout captures UTM parameters (`utm_source`, `utm_medium`, `utm_campaign`, `utm_content`, `utm_term`) and landing page / ad campaign IDs directly from client and URL search params.
+  - `POST /store/orders/cod` and webhook callbacks write verbatim attribution attributes into canonical PostgreSQL table `order_bd_details` (columns `utm_source`, `utm_medium`, `utm_campaign`, `utm_content`, `utm_term`, `landing_page_id`, `ad_campaign_id`).
+  - Automated test suite `scratch/verify-prompt14.js` Test 8 validated that placing a COD order through Mode B checkout persisted `utm_source='facebook'`, `utm_campaign='eid_panjabi_2026'`, and `landing_page_id` directly to `order_bd_details`.
+  - Contribution profit read model and reports view (`GET /admin/reports/contribution-profit`) group revenue, ad spend, and net margins by campaign attribution.
 
 ---
 

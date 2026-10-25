@@ -314,6 +314,8 @@ export async function saveCheckoutAddressService({
   streetAddress,
   postalCode,
   utmParams,
+  landingPageId,
+  adCampaignId,
   idempotencyKey,
 }: {
   firstName: string
@@ -326,6 +328,8 @@ export async function saveCheckoutAddressService({
   streetAddress: string
   postalCode?: string
   utmParams?: Record<string, string | undefined>
+  landingPageId?: string
+  adCampaignId?: string
   idempotencyKey?: string
 }): Promise<{
   success: boolean
@@ -443,7 +447,12 @@ export async function saveCheckoutAddressService({
     if (utmParams.utm_campaign) metadata.utm_campaign = utmParams.utm_campaign
     if (utmParams.utm_content) metadata.utm_content = utmParams.utm_content
     if (utmParams.utm_term) metadata.utm_term = utmParams.utm_term
+    if (utmParams.landing_page_id) metadata.landing_page_id = utmParams.landing_page_id
+    if (utmParams.ad_campaign_id) metadata.ad_campaign_id = utmParams.ad_campaign_id
   }
+
+  if (landingPageId) metadata.landing_page_id = landingPageId
+  if (adCampaignId) metadata.ad_campaign_id = adCampaignId
 
   // 5. Update shipping address on Medusa cart
   const updatedCartWithAddress = await updateMedusaCartAddress(

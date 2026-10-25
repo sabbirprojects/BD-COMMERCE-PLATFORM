@@ -24,6 +24,14 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const body = (req.body || {}) as {
     cart_id?: string
     idempotency_key?: string
+    landing_page_id?: string
+    ad_campaign_id?: string
+    offer_id?: string
+    utm_source?: string
+    utm_medium?: string
+    utm_campaign?: string
+    utm_content?: string
+    utm_term?: string
   }
 
   const cartId = body.cart_id
@@ -108,6 +116,43 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       error: "Cart is empty",
       error_bn: "আপনার কার্ট খালি",
     })
+  }
+
+  // 3.1. Campaign / Offer Expiry Check (FR-5.2.5)
+  const targetOfferId = body.offer_id || cart.metadata?.offer_id
+  if (targetOfferId) {
+    const offerRes = await pg.raw(
+      `SELECT id, ends_at, is_active FROM landing_page_offer WHERE id = ? AND deleted_at IS NULL LIMIT 1`,
+      [targetOfferId]
+    )
+    if (offerRes.rows?.length > 0) {
+      const offer = offerRes.rows[0]
+      if (!offer.is_active || (offer.ends_at && new Date(offer.ends_at) < new Date())) {
+        return res.status(422).json({
+          success: false,
+          error: "Campaign offer has expired and can no longer be ordered (FR-5.2.5).",
+          error_bn: "ক্যাম্পেইন অফারটির মেয়াদ শেষ হয়ে গেছে।",
+        })
+      }
+    }
+  }
+
+  const targetLpId = body.landing_page_id || cart.metadata?.landing_page_id
+  if (targetLpId) {
+    const lpRes = await pg.raw(
+      `SELECT id, ends_at, status FROM landing_page WHERE id = ? AND deleted_at IS NULL LIMIT 1`,
+      [targetLpId]
+    )
+    if (lpRes.rows?.length > 0) {
+      const lp = lpRes.rows[0]
+      if (lp.status !== 'published' || (lp.ends_at && new Date(lp.ends_at) < new Date())) {
+        return res.status(422).json({
+          success: false,
+          error: "Campaign has ended or is inactive.",
+          error_bn: "ক্যাম্পেইনটির সময়সীমা শেষ হয়ে গেছে।",
+        })
+      }
+    }
   }
 
   // 4. Validate phone number (CHK-CHK-05)
@@ -323,6 +368,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
         cod_status, cod_expires_at, cod_collectable_paisa, raw_cod_collectable_paisa,
         customer_paid_delivery_paisa, raw_customer_paid_delivery_paisa,
         utm_source, utm_medium, utm_campaign, utm_content, utm_term,
+        landing_page_id, ad_campaign_id,
         risk_level_at_order, created_at, updated_at
       ) VALUES (
         ?, ?, 'web', ?, ?, ?, ?,
@@ -330,6 +376,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
         'pending_confirmation', now() + (? || ' hours')::interval, ?, ?,
         ?, ?,
         ?, ?, ?, ?, ?,
+        ?, ?,
         'low', now(), now()
       )`,
       [
@@ -347,11 +394,13 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
         JSON.stringify({ value: String(orderTotalPaisa), precision: 20 }),
         shippingTotalPaisa,
         JSON.stringify({ value: String(shippingTotalPaisa), precision: 20 }),
-        cartMeta.utm_source || null,
-        cartMeta.utm_medium || null,
-        cartMeta.utm_campaign || null,
-        cartMeta.utm_content || null,
-        cartMeta.utm_term || null,
+        body.utm_source || cartMeta.utm_source || null,
+        body.utm_medium || cartMeta.utm_medium || null,
+        body.utm_campaign || cartMeta.utm_campaign || null,
+        body.utm_content || cartMeta.utm_content || null,
+        body.utm_term || cartMeta.utm_term || null,
+        body.landing_page_id || cartMeta.landing_page_id || null,
+        body.ad_campaign_id || cartMeta.ad_campaign_id || null,
       ]
     )
 

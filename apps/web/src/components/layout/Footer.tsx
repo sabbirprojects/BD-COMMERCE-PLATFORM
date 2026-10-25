@@ -1,4 +1,6 @@
+'use client'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { Truck, ShieldCheck, Banknote, Clock } from 'lucide-react'
 import { Locale, getDictionary } from '@/lib/i18n'
 import { StoreCategory } from '@/lib/medusa'
@@ -9,6 +11,11 @@ interface FooterProps {
 }
 
 export function Footer({ locale, categories }: FooterProps) {
+  const pathname = usePathname()
+  if (pathname?.includes('/lp/')) {
+    return null
+  }
+
   const dict = getDictionary(locale)
 
   return (

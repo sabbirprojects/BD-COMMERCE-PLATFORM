@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
+import { usePathname } from 'next/navigation'
 import { ShoppingBag, Search, Menu, X, ShieldCheck } from 'lucide-react'
 import { Locale, getDictionary } from '@/lib/i18n'
 import { StoreCategory } from '@/lib/medusa'
@@ -14,6 +15,11 @@ interface NavbarProps {
 }
 
 export function Navbar({ locale, categories }: NavbarProps) {
+  const pathname = usePathname()
+  if (pathname?.includes('/lp/')) {
+    return null
+  }
+
   const dict = getDictionary(locale)
   const { itemCount, openDrawer } = useCart()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)

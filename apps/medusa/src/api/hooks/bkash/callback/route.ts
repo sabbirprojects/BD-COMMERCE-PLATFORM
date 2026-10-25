@@ -292,12 +292,16 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
         division_code, district_code, thana_code, address_snapshot,
         cod_collectable_paisa, customer_paid_delivery_paisa,
         source_reference,
+        utm_source, utm_medium, utm_campaign, utm_content, utm_term,
+        landing_page_id, ad_campaign_id,
         created_at, updated_at
       ) VALUES (
         ?, ?, 'bkash', 'not_applicable', ?,
         ?, ?, ?, ?,
         0, ?,
         ?,
+        ?, ?, ?, ?, ?,
+        ?, ?,
         now(), now()
       )`,
       [
@@ -310,6 +314,13 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
         JSON.stringify(addrSnapshot),
         Math.round(shippingTotal * 100),
         trxId,
+        cartMeta.utm_source || null,
+        cartMeta.utm_medium || null,
+        cartMeta.utm_campaign || null,
+        cartMeta.utm_content || null,
+        cartMeta.utm_term || null,
+        cartMeta.landing_page_id || null,
+        cartMeta.ad_campaign_id || null,
       ]
     )
 
