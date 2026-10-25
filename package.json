@@ -23,6 +23,8 @@
     "docker:down": "docker compose down",
     "docker:logs": "docker compose logs -f",
     "docker:ps": "docker compose ps",
+    "lint": "npm run lint --workspace=apps/web",
+    "typecheck": "npm run lint --workspace=apps/web && tsc --noEmit --project apps/medusa/tsconfig.json",
     "test:p0": "node tests/run-all-p0-tests.js"
   },
   "keywords": [

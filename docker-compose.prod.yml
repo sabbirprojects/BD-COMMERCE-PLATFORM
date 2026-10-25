@@ -1,0 +1,243 @@
+# ==============================================================================
+# Production Docker Compose Configuration
+# Bangladesh Single-Vendor E-commerce Platform
+#
+# Services:
+#   - postgres: PostgreSQL 16 (Relational Database)
+#   - redis: Redis 7 (Caching, Sessions, BullMQ Queues)
+#   - meilisearch: Meilisearch v1.11 (Catalog Search Engine)
+#   - medusa: MedusaJS v2 Backend & Embedded Admin UI (Port 9000)
+#   - web: Next.js 15 Bilingual Storefront (Port 3000)
+#
+# Security:
+#   - Internal services (Postgres, Redis, Meilisearch) are NOT bound to public interfaces.
+#   - Nagad RSA private key is mounted read-only (:ro) into Medusa container.
+#   - Strict service_healthy dependency ordering.
+#   - Non-root unprivileged container users.
+# ==============================================================================
+
+name: bd_commerce_prod
+
+services:
+  # ----------------------------------------------------------------------------
+  # 1. PostgreSQL 16 Relational Database
+  # ----------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: bd_commerce_prod_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER must be set}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+      POSTGRES_DB: ${POSTGRES_DB:-bd_commerce}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB:-bd_commerce}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - bd_commerce_prod_net
+    deploy:
+      resources:
+        limits:
+          memory: 2048M
+        reservations:
+          memory: 512M
+
+  # ----------------------------------------------------------------------------
+  # 2. Redis 7 In-Memory Cache, Rate Limiter & BullMQ Queue Broker
+  # ----------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: bd_commerce_prod_redis
+    restart: unless-stopped
+    command: >
+      sh -c 'if [ -n "$$REDIS_PASSWORD" ]; then
+        redis-server --requirepass "$$REDIS_PASSWORD" --appendonly yes --maxmemory 512mb --maxmemory-policy volatile-lru;
+      else
+        redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy volatile-lru;
+      fi'
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD must be set}
+    volumes:
+      - redis_prod_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "if [ -n \"$$REDIS_PASSWORD\" ]; then redis-cli -a \"$$REDIS_PASSWORD\" ping; else redis-cli ping; fi"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    networks:
+      - bd_commerce_prod_net
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+        reservations:
+          memory: 128M
+
+  # ----------------------------------------------------------------------------
+  # 3. Meilisearch v1.11 Fast Catalog Search Engine
+  # ----------------------------------------------------------------------------
+  meilisearch:
+    image: getmeili/meilisearch:v1.11
+    container_name: bd_commerce_prod_meilisearch
+    restart: unless-stopped
+    environment:
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:?MEILI_MASTER_KEY must be set}
+      MEILI_NO_ANALYTICS: "true"
+      MEILI_ENV: "production"
+    volumes:
+      - meilisearch_prod_data:/meili_data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7700/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - bd_commerce_prod_net
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+        reservations:
+          memory: 256M
+
+  # ----------------------------------------------------------------------------
+  # 4. MedusaJS v2 Backend & Embedded Admin UI
+  # ----------------------------------------------------------------------------
+  medusa:
+    build:
+      context: .
+      dockerfile: apps/medusa/Dockerfile
+    container_name: bd_commerce_prod_medusa
+    restart: unless-stopped
+    ports:
+      # Internal reverse proxy (Nginx / Caddy / Cloudflare Tunnel) targets port 9000
+      - "${MEDUSA_PORT:-9000}:9000"
+    environment:
+      NODE_ENV: production
+      PORT: 9000
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-bd_commerce}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      MEILISEARCH_URL: http://meilisearch:7700
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set}
+      COOKIE_SECRET: ${COOKIE_SECRET:?COOKIE_SECRET must be set}
+      STORE_CORS: ${STORE_CORS:?STORE_CORS must be set}
+      ADMIN_CORS: ${ADMIN_CORS:?ADMIN_CORS must be set}
+      AUTH_CORS: ${AUTH_CORS:?AUTH_CORS must be set}
+      MEDUSA_BACKEND_URL: ${MEDUSA_BACKEND_URL:-http://localhost:9000}
+      MEDUSA_ADMIN_EMAIL: ${MEDUSA_ADMIN_EMAIL:-admin@yourdomain.com}
+      # Payment Gateway credentials
+      BKASH_APP_KEY: ${BKASH_APP_KEY:-}
+      BKASH_APP_SECRET: ${BKASH_APP_SECRET:-}
+      BKASH_USERNAME: ${BKASH_USERNAME:-}
+      BKASH_PASSWORD: ${BKASH_PASSWORD:-}
+      BKASH_SANDBOX: ${BKASH_SANDBOX:-true}
+      NAGAD_MERCHANT_ID: ${NAGAD_MERCHANT_ID:-}
+      NAGAD_PRIVATE_KEY_PATH: /etc/secrets/nagad_private.pem
+      NAGAD_PUBLIC_KEY_PATH: ${NAGAD_PUBLIC_KEY_PATH:-}
+      NAGAD_SANDBOX: ${NAGAD_SANDBOX:-true}
+      # Courier APIs
+      STEADFAST_API_KEY: ${STEADFAST_API_KEY:-}
+      STEADFAST_API_SECRET: ${STEADFAST_API_SECRET:-}
+      PATHAO_CLIENT_ID: ${PATHAO_CLIENT_ID:-}
+      PATHAO_CLIENT_SECRET: ${PATHAO_CLIENT_SECRET:-}
+      # SMS Gateway
+      SMS_PROVIDER: ${SMS_PROVIDER:-greenweb}
+      SMS_API_KEY: ${SMS_API_KEY:-}
+      SMS_SENDER_ID: ${SMS_SENDER_ID:-}
+    volumes:
+      # Mount Nagad private key read-only from host filesystem (Security Rule C-5)
+      - ${NAGAD_KEY_HOST_PATH:-./config/keys/nagad_private.pem}:/etc/secrets/nagad_private.pem:ro
+      - medusa_uploads:/app/apps/medusa/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      meilisearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 45s
+    networks:
+      - bd_commerce_prod_net
+    deploy:
+      resources:
+        limits:
+          memory: 2048M
+        reservations:
+          memory: 512M
+
+  # ----------------------------------------------------------------------------
+  # 5. Next.js 15 Bilingual Storefront
+  # ----------------------------------------------------------------------------
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_MEDUSA_BACKEND_URL: ${NEXT_PUBLIC_MEDUSA_BACKEND_URL}
+        NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY: ${NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY:-}
+        NEXT_PUBLIC_MEILISEARCH_URL: ${NEXT_PUBLIC_MEILISEARCH_URL:-}
+        NEXT_PUBLIC_MEILISEARCH_SEARCH_KEY: ${NEXT_PUBLIC_MEILISEARCH_SEARCH_KEY:-}
+        NEXT_PUBLIC_META_PIXEL_ID: ${NEXT_PUBLIC_META_PIXEL_ID:-}
+    container_name: bd_commerce_prod_web
+    restart: unless-stopped
+    ports:
+      # Public reverse proxy / Cloudflare directs storefront traffic to port 3000
+      - "${WEB_PORT:-3000}:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: "0.0.0.0"
+      NEXT_PUBLIC_MEDUSA_BACKEND_URL: ${NEXT_PUBLIC_MEDUSA_BACKEND_URL}
+      NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY: ${NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY:-}
+      NEXT_PUBLIC_MEILISEARCH_URL: ${NEXT_PUBLIC_MEILISEARCH_URL:-}
+      NEXT_PUBLIC_MEILISEARCH_SEARCH_KEY: ${NEXT_PUBLIC_MEILISEARCH_SEARCH_KEY:-}
+      NEXT_PUBLIC_META_PIXEL_ID: ${NEXT_PUBLIC_META_PIXEL_ID:-}
+    depends_on:
+      medusa:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -k -s -o /dev/null -w \"%{http_code}\" http://localhost:3000/ | grep -E '^(200|301|302|307|308)$' || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks:
+      - bd_commerce_prod_net
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+        reservations:
+          memory: 256M
+
+# ==============================================================================
+# Persistent Volumes & Private Network Definitions
+# ==============================================================================
+volumes:
+  postgres_prod_data:
+    driver: local
+  redis_prod_data:
+    driver: local
+  meilisearch_prod_data:
+    driver: local
+  medusa_uploads:
+    driver: local
+
+networks:
+  bd_commerce_prod_net:
+    driver: bridge
+    name: bd_commerce_prod_net

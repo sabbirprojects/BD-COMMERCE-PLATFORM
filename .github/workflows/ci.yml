@@ -1,0 +1,126 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ============================================================================
+  # Security Audit, Linting, Typecheck, Tests, and Production Builds
+  # ============================================================================
+  build-and-test:
+    name: Test & Build (P0 Security, Medusa, Next.js)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: bd_commerce
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      meilisearch:
+        image: getmeili/meilisearch:v1.11
+        env:
+          MEILI_MASTER_KEY: meili_master_key_secret_12345
+          MEILI_NO_ANALYTICS: "true"
+        ports:
+          - 7700:7700
+        options: >-
+          --health-cmd "curl -f http://localhost:7700/health"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/bd_commerce
+      REDIS_URL: redis://localhost:6379
+      MEILISEARCH_URL: http://localhost:7700
+      MEILI_MASTER_KEY: meili_master_key_secret_12345
+      JWT_SECRET: supersecret_test_jwt_secret_64chars_long_enough_for_validation
+      COOKIE_SECRET: supersecret_test_cookie_secret_64chars_long_enough_for_validation
+      STORE_CORS: http://localhost:3000
+      ADMIN_CORS: http://localhost:9000
+      AUTH_CORS: http://localhost:9000,http://localhost:3000
+      MEDUSA_BACKEND_URL: http://localhost:9000
+      NEXT_PUBLIC_MEDUSA_BACKEND_URL: http://localhost:9000
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: 🛡️ Secret Hygiene & Cryptographic Audit
+        run: node tests/secret-hygiene.test.js
+
+      - name: 🔍 Linting & TypeScript Typecheck
+        run: |
+          npm run lint
+          npm run typecheck
+
+      - name: 🗄️ Verify Database Migrations (Medusa DB Migrate)
+        run: |
+          # Verify migrations run cleanly without dropping database
+          npx --workspace=apps/medusa medusa db:migrate
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/bd_commerce
+
+      - name: 🧪 Execute P0 Security & Integration Test Suite (10 Suites)
+        run: npm run test:p0
+
+      - name: 🏗️ Production Build - MedusaJS v2 Backend
+        run: npm run build:medusa
+
+      - name: 🌐 Production Build - Next.js 15 Storefront
+        run: npm run build:web
+
+      - name: 🐳 Validate Production Docker Compose Syntax
+        run: |
+          # Dry-run config check to ensure schema and environment declarations are valid
+          POSTGRES_USER=postgres \
+          POSTGRES_PASSWORD=postgres \
+          REDIS_PASSWORD=dummy_pass \
+          MEILI_MASTER_KEY=dummy_key \
+          JWT_SECRET=dummy_jwt \
+          COOKIE_SECRET=dummy_cookie \
+          STORE_CORS=https://store.example.com \
+          ADMIN_CORS=https://admin.example.com \
+          AUTH_CORS=https://store.example.com \
+          NEXT_PUBLIC_MEDUSA_BACKEND_URL=https://api.example.com \
+          docker compose -f docker-compose.prod.yml config -q

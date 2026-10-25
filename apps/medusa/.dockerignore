@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# Build artifacts
+.medusa/
+.cache/
+dist/
+*.tsbuildinfo
+
+# Secrets & environment
+.env
+.env.*
+!.env.template
+config/keys/
+keys/
+*.pem
+*.key
+
+# Git & OS
+.git
+.DS_Store
+*.log

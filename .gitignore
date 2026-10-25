@@ -50,3 +50,10 @@ docker_data/
 *.crt
 config/keys/
 keys/
+
+# Database backup archives & drill dumps
+backups/
+*.sql
+*.sql.gz
+*.sql.gz.enc
+*.sha256

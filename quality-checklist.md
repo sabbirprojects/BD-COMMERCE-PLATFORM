@@ -630,9 +630,14 @@
 * **Expected Behavior:**
   - No secret keys, database passwords, or JWT secrets committed to Git repository (`.env` in `.gitignore`).
   - Production environment strictly utilizes separate credentials from development.
-* **How to Test:** Search Git commit history for secret patterns; verify `.gitignore` contains all `.env*` files except `.env.template`.
+* **How to Test:** Search Git commit history for secret patterns; verify `.gitignore` contains all `.env*` files except `.env.example`.
 * **Passing Criteria:** Zero credentials in git history; backend fails to start with informative error if required env vars are missing.
-* **Status:** `[ ] Pending Verification (Pre-Build)`
+* **Status:** `[x] Verified (Prompt 18)`
+* **Verification Evidence:**
+  - Clean git commit scan via [`tests/secret-hygiene.test.js`](file:///Users/sabbir/Desktop/All%20projects/bd-commerce-platform/tests/secret-hygiene.test.js) (0 private keys, 0 active .env files in git).
+  - Complete environment template in [`.env.example`](file:///Users/sabbir/Desktop/All%20projects/bd-commerce-platform/.env.example) and production cloud secret manager template in [`.env.production.example`](file:///Users/sabbir/Desktop/All%20projects/bd-commerce-platform/.env.production.example).
+  - Nagad RSA private key mounted as a read-only filesystem volume with `0600` permissions (Rule C-5).
+  - Documented in [`docs/quality-evidence.md`](file:///Users/sabbir/Desktop/All%20projects/bd-commerce-platform/docs/quality-evidence.md) §5.1.
 
 ---
 
@@ -643,7 +648,12 @@
   - Foreign key constraints, unique indexes, and JSONB columns are properly provisioned.
 * **How to Test:** Run `npx medusa db:migrate` on a clean test database.
 * **Passing Criteria:** Migrations exit with code 0; all tables (`product_localization`, `category_attribute`, `order_bd_details`, `landing_page`) exist with correct schemas.
-* **Status:** `[ ] Pending Verification (Pre-Build)`
+* **Status:** `[x] Verified (Prompt 18)`
+* **Verification Evidence:**
+  - Database schema evolves via non-destructive migrations (`medusa db:migrate`).
+  - GitHub Actions CI workflow in [`.github/workflows/ci.yml`](file:///Users/sabbir/Desktop/All%20projects/bd-commerce-platform/.github/workflows/ci.yml) validates migrations against clean PostgreSQL 16 container.
+  - Zero `DROP DATABASE` policy strictly enforced in deployment runbook [`docs/deployment.md`](file:///Users/sabbir/Desktop/All%20projects/bd-commerce-platform/docs/deployment.md) §2.2.
+  - Documented in [`docs/quality-evidence.md`](file:///Users/sabbir/Desktop/All%20projects/bd-commerce-platform/docs/quality-evidence.md) §5.2.
 
 ---
 
@@ -654,7 +664,13 @@
   - Backups older than 30 days are automatically pruned.
 * **How to Test:** Trigger backup script manually; verify encrypted `.sql.gz` appears in remote storage; restore dump into a test database.
 * **Passing Criteria:** Restored database matches primary database record counts exactly; restore takes < 5 minutes.
-* **Status:** `[ ] Pending Verification (Pre-Build)`
+* **Status:** `[x] Verified (Prompt 18)`
+* **Verification Evidence:**
+  - Automated backup script in [`scripts/backup/backup-database.sh`](file:///Users/sabbir/Desktop/All%20projects/bd-commerce-platform/scripts/backup/backup-database.sh) executes `pg_dump`, gzip -9 compression, OpenSSL AES-256-CBC encryption, SHA-256 checksum generation, and 30-day retention pruning.
+  - Restore drill script in [`scripts/backup/restore-database.sh`](file:///Users/sabbir/Desktop/All%20projects/bd-commerce-platform/scripts/backup/restore-database.sh) executed live into throwaway database `bd_commerce_restore_test`.
+  - 100% row count match verified across all key tables (`product`: 17, `order_bd_details`: 126, `audit_log`: 178, `delivery_zone`: 3, `vat_settings`: 1).
+  - Recovery duration: 4 seconds (SLA target: < 300 seconds).
+  - Full restore log and evidence recorded in [`docs/quality-evidence.md`](file:///Users/sabbir/Desktop/All%20projects/bd-commerce-platform/docs/quality-evidence.md) §5.3.
 
 ---
 

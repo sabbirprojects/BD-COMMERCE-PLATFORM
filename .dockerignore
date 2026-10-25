@@ -1,0 +1,51 @@
+# Dependencies
+node_modules
+*/node_modules
+*/*/node_modules
+
+# Build artifacts
+.next
+.medusa
+dist
+build
+out
+.cache
+*.tsbuildinfo
+
+# Environment variables & secrets (CRITICAL: zero secrets in images)
+.env
+.env.*
+!.env.example
+!.env.production.example
+config/keys/
+keys/
+*.pem
+*.key
+*.crt
+
+# Backups & dumps
+backups/
+*.sql
+*.sql.gz
+*.sql.gz.enc
+*.sha256
+
+# Git & IDE metadata
+.git
+.github
+.gitignore
+.agents
+.cursor
+.cursorrules
+.gemini
+.idea
+.vscode
+.DS_Store
+*.swp
+*.swo
+
+# Scratch & test outputs
+scratch/
+coverage/
+*.log
+npm-debug.log*
