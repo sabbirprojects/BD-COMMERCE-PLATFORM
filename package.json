@@ -22,7 +22,8 @@
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
     "docker:logs": "docker compose logs -f",
-    "docker:ps": "docker compose ps"
+    "docker:ps": "docker compose ps",
+    "test:p0": "node tests/run-all-p0-tests.js"
   },
   "keywords": [
     "ecommerce",

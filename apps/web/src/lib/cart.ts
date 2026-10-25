@@ -299,6 +299,13 @@ export async function applyShippingService({
   }
 }
 
+export function sanitizeInputText(str: string): string {
+  if (!str || typeof str !== 'string') return ''
+  return str.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+            .replace(/<[^>]+>/g, '')
+            .trim()
+}
+
 /**
  * Validate and persist 4-tier address cascade and metadata to Medusa cart.
  * Persists address_snapshot and UTM params into cart.metadata for order_bd_details.
@@ -409,11 +416,15 @@ export async function saveCheckoutAddressService({
 
   const cart = await getOrSetCart()
 
-  // 4. Build address snapshot (database.md §3.4.4 & §8.1)
+  // 4. Build address snapshot with XSS sanitization (CHK-OPS-05, database.md §3.4.4 & §8.1)
   const effectivePostalCode = postalCode || thana.postal_codes?.[0] || ''
+  const cleanFirstName = sanitizeInputText(firstName)
+  const cleanLastName = sanitizeInputText(lastName)
+  const cleanStreet = sanitizeInputText(streetAddress)
+
   const addressSnapshot = {
-    first_name: firstName.trim(),
-    last_name: lastName.trim(),
+    first_name: cleanFirstName,
+    last_name: cleanLastName,
     phone: canonicalPhone,
     alt_phone: canonicalAltPhone,
     division_code: divisionCode,
@@ -426,7 +437,7 @@ export async function saveCheckoutAddressService({
     thana_name_en: thana.name_en,
     thana_name_bn: thana.name_bn,
     postal_code: effectivePostalCode,
-    address_1: streetAddress.trim(),
+    address_1: cleanStreet,
     delivery_zone_code: zone.code,
   }
 

@@ -43,3 +43,10 @@ generated/
 
 # Docker persistent volume local backups (if any)
 docker_data/
+
+# Cryptographic Keys and Certificates
+*.pem
+*.key
+*.crt
+config/keys/
+keys/
